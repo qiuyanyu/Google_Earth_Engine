@@ -1,2 +1,1 @@
-# Machine_Learning_Insights
-This R script is associated with paper: Study becomes insight: ecological learning from machine learning
+# Tis folder contains Qiuyan's scripts to retrieve GEDI relative height at plot level (10km by 10km) in Google Earth Engine

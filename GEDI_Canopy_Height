@@ -1,0 +1,53 @@
+
+//// This script retrieves canopy height within all the 10km by 10km plots
+
+// step 1: create plots (10km by 10km at lat and long confluences)
+//import the lat and long of each plot center as Global_Samples
+//Map.addLayer(Global_Samples)
+// convert to feature collection
+var pointCollection = ee.FeatureCollection(Global_Samples);
+
+// Define a function of buffering and bounding      
+var bounding_box_func = function(feature) {
+    var intermediate_buffer = feature.buffer(5000);  // buffer radius, half your box width in m
+    var intermediate_box = intermediate_buffer.bounds(); // Draw a bounding box around the circle
+       return(intermediate_box); // Return the bounding box
+      };
+
+// apply function
+var bounding_boxes = pointCollection.map(bounding_box_func);
+    Map.centerObject(pointCollection); // Center map on sample points
+    //Map.addLayer(bounding_boxes, {color: '#FECA1E', fillColor: '#4c4cff'}, "Bounding boxes");
+print(bounding_boxes.first())
+
+//STEP 2: get the variable of interest from GEDI
+// mask by quality
+function maskrh(img) {
+  // Get the pixel QA band.
+  var qa = img.select('quality_flag');
+  // var leafon = img.select('leaf_on_cycle');
+  // Both flags should be set to zero, indicating clear conditions.
+  var mask = qa.eq(1)//.and(leafon.eq(1));
+  return img.updateMask(mask);
+}
+
+var image = ee.ImageCollection('LARSE/GEDI/GEDI02_A_002_MONTHLY')
+          .map(maskrh)
+          .map(function(img) {return img.select('rh98').float()})
+          .mosaic();
+
+// step 3: extract rh98 of each pixel within plots
+var sampled_pixels = image.sampleRegions({
+  collection: bounding_boxes,
+  scale: 25,
+  geometries: true
+});
+print(sampled_pixels.size())
+//Map.addLayer(sampled_pixels, {color: 'purple'}, 'sampled_pixels');
+//print(sampled_pixels.first())
+
+// extract data
+Export.table.toCloudStorage({
+  collection: sampled_pixels,
+  description: 'GEDI rh98 within plots'
+}) // CSV by default
